@@ -27,6 +27,7 @@ public class MobileAccessFilter extends OncePerRequestFilter {
   res.setHeader("Content-Security-Policy","default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; object-src 'none'");
   if(path.contains(";")||path.contains("%")||path.contains("..")||path.contains("//")){error(res,404,"Ruta no disponible");return;}
   if(!path.startsWith("/api/mobile/")){
+   res.setHeader("Cache-Control","no-cache");
    if(!Set.of("/","/index.html","/app.js","/app.css","/sw.js","/manifest.webmanifest","/icon.svg","/icon-192.png","/icon-512.png","/favicon.ico","/error").contains(path)||!Set.of("GET","HEAD").contains(req.getMethod())){error(res,404,"Ruta no disponible en la aplicación del almacén");return;}
    chain.doFilter(req,res);return;
   }

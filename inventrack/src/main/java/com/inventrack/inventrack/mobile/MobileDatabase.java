@@ -18,6 +18,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component @Order(10)
 public class MobileDatabase implements ApplicationRunner {
  public static final String WAREHOUSE = "Almacén M&M";
+ public static final String GENERAL = "Almacén general · 4.º piso";
  final JdbcTemplate db;
  final JsonMapper json;
  private final DataSource source;
@@ -25,6 +26,7 @@ public class MobileDatabase implements ApplicationRunner {
  private final boolean enabled, seedCatalog;
  final int defaultMinimum;
  private volatile int warehouse;
+ private volatile List<Integer> warehouseIds=List.of();
 
  public MobileDatabase(JdbcTemplate db, JsonMapper json, DataSource source, TransactionTemplate tx,
   @Value("${mobile.enabled:true}") boolean enabled, @Value("${mobile.seed-catalog:true}") boolean seedCatalog,
@@ -40,11 +42,36 @@ public class MobileDatabase implements ApplicationRunner {
    ScriptUtils.executeSqlScript(con,new ClassPathResource("mobile/mobile-schema.sql"));
   }
   tx.executeWithoutResult(status -> {
-   var found=db.queryForList("select idsucursal from sucursales where nombre=?",WAREHOUSE);
-   warehouse=found.isEmpty()?insert("insert into sucursales(nombre,direccion,telefono,activo) values(?,?,?,?)",WAREHOUSE,"Almacén",null,true):((Number)found.getFirst().get("idsucursal")).intValue();
+   warehouse=prepareWarehouse("general",GENERAL,WAREHOUSE);
+   int beauty=prepareWarehouse("beauty","Altillo Beauty","Altillo Beauty");
+   int mm=prepareWarehouse("mm","Altillo M&M","Altillo M&M");
+   warehouseIds=List.of(warehouse,beauty,mm);
    if(seedCatalog) seed();
+   ensureStocks();
   });
  }
+ private int prepareWarehouse(String code,String name,String legacyName){
+  var found=db.queryForList("select idsucursal from sucursales where codigomovil=? order by idsucursal",Integer.class,code);
+  if(found.isEmpty())found=db.queryForList("select idsucursal from sucursales where codigomovil is null and (nombre=? or nombre=?) order by idsucursal",Integer.class,legacyName,name);
+  int id=found.isEmpty()?insert("insert into sucursales(nombre,direccion,telefono,activo) values(?,?,?,true)",legacyName,name,null):found.getFirst();
+  db.update("update sucursales set codigomovil=?,nombremovil=? where idsucursal=?",code,name,id);
+  return id;
+ }
+ void ensureStocks(){
+  for(int site:warehouseIds)db.update("""
+   insert into inventario(idsucursal,idproducto,cantidaddisponible,conteoreal,actualizacion)
+   select ?,p.idproducto,0,false,? from producto p
+   where p.activo=true and not exists(select 1 from inventario i where i.idsucursal=? and i.idproducto=p.idproducto)
+   """,site,LocalDateTime.now(),site);
+ }
+ List<Map<String,Object>> warehouses(){return db.queryForList("select idsucursal as id,codigomovil as codigo,coalesce(nombremovil,nombre) as nombre from sucursales where codigomovil in ('general','beauty','mm') and activo=true order by case codigomovil when 'general' then 1 when 'beauty' then 2 else 3 end");}
+ int resolveWarehouse(String requested){
+  if(requested==null||requested.isBlank())return warehouse();
+  try{int id=Integer.parseInt(requested);if(warehouses().stream().anyMatch(s->((Number)s.get("id")).intValue()==id))return id;}
+  catch(NumberFormatException ignored){}
+  throw WarehouseService.bad("Selecciona un almacén válido");
+ }
+ String warehouseName(int id){return db.queryForObject("select coalesce(nombremovil,nombre) from sucursales where idsucursal=?",String.class,id);}
  @SuppressWarnings("unchecked") private void seed() {
   try(var in=new ClassPathResource("mobile/catalogo-keyfacil.json").getInputStream()) {
    byte[] bytes=in.readAllBytes();String fingerprint=MobileSession.hash(bytes);

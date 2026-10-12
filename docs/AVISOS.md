@@ -6,6 +6,8 @@ El servidor revisa el stock cada 30 segundos. Envía un solo resumen por disposi
 
 Los ceros que todavía están pendientes de conteo no se notifican. Después de reponer un producto, si vuelve a quedar bajo su mínimo se podrá incluir en un nuevo resumen. La entrega depende de internet, los permisos del teléfono y el servicio de notificaciones.
 
+El resumen reúne los tres almacenes y distingue cada combinación de sitio y producto. Un mismo código puede necesitar reposición en dos sitios sin duplicarse en el catálogo. Al tocar el aviso se abre la lista de todos los sitios, agrupada por almacén; desde la navegación se puede consultar solo el almacén seleccionado. Los avisos registrados antes de esta actualización se conservan.
+
 ## Android con Firebase
 
 1. Crea un proyecto de Firebase y registra una aplicación Android con el paquete **pe.inventrack.almacen**. Activa Firebase Cloud Messaging.
@@ -35,4 +37,4 @@ El service worker recibe el aviso aun sin mantener la pantalla abierta. Las susc
 
 ## Prueba real pendiente
 
-Esta entrega verifica la agrupación y los reintentos con un transporte de prueba. No se enviaron notificaciones reales porque no se proporcionaron credenciales de Firebase o VAPID. Tras publicar el servicio propio de este almacén en Render y configurar los servicios, prueba Android e iPhone por separado: confirma el conteo de dos productos con cantidades bajo su mínimo, espera la revisión y comprueba que aparece un solo resumen, que no se repite continuamente y que al tocarlo abre la lista correcta.
+La agrupación, los reintentos y la separación por sitio se verificaron con un transporte de prueba. El servidor de Render detecta configuración de Firebase y VAPID; esto no confirma la recepción en un teléfono. Prueba Android e iPhone por separado con cantidades reales: confirma conteos bajo el mínimo, espera la revisión y comprueba que aparece un solo resumen, que no se repite continuamente y que al tocarlo abre los productos agrupados por sitio.

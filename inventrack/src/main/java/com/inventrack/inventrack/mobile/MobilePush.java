@@ -51,14 +51,16 @@ public class MobilePush {
  @SuppressWarnings("unchecked") public void deliver(){
   if(!enabled||(!webReady()&&!androidReady()))return;
   try{
-   var lows=warehouse.lowStock();List<Integer> ids=lows.stream().map(r->((Number)r.get("id")).intValue()).sorted().toList();
+   var lows=warehouse.allLowStock();List<String> ids=lows.stream().map(r->r.get("almacenid")+":"+r.get("id")).sorted().toList();
    var devices=data.db.queryForList("select d.* from mobile_dispositivo d join usuario u on u.idusuario=d.idusuario where d.activo=true and u.activo=true and u.idsucursal=?",data.warehouse());
    for(var device:devices){
-    List<Integer> previous=(List<Integer>)(List<?>)data.json.readValue(device.get("notificados").toString(),List.class);
+    List<?> prior=data.json.readValue(device.get("notificados").toString(),List.class);
+    List<String> previous=prior.stream().map(i->i instanceof Number?data.warehouse()+":"+i:i.toString()).toList();
     boolean newLow=ids.stream().anyMatch(i->!previous.contains(i));
     if(!newLow){data.db.update("update mobile_dispositivo set notificados=? where id=?",data.json.writeValueAsString(ids),device.get("id"));continue;}
     var last=device.get("ultimoenvio");if(last instanceof Timestamp t&&t.toLocalDateTime().isAfter(LocalDateTime.now().minusSeconds(60)))continue;
-    String title="Reposición pendiente",body="Tienes "+ids.size()+" productos con bajo stock. Toca para revisarlos.";
+    long places=lows.stream().map(r->r.get("almacenid")).distinct().count();
+    String title="Reposición pendiente",body="Tienes "+ids.size()+" productos con bajo stock en "+places+(places==1?" almacén.":" almacenes.")+" Toca para revisarlos.";
     try{
      if(!sendGrouped(device,title,body,ids.size()))continue;
      data.db.update("update mobile_dispositivo set notificados=?,ultimoenvio=? where id=?",data.json.writeValueAsString(ids),LocalDateTime.now(),device.get("id"));

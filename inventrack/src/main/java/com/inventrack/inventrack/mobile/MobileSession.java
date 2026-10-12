@@ -36,7 +36,7 @@ public class MobileSession {
  }
  void admin(User u){if(!u.rol().equals("Administrador"))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Esta acción requiere un administrador");}
  String errorJson(String message){return data.json.writeValueAsString(Map.of("mensaje",Objects.toString(message,"Solicitud inválida")));}
- Map<String,Object> profile(User u){return Map.of("id",u.id(),"nombre",u.nombre(),"correo",u.correo(),"rol",u.rol(),"csrf",u.csrf(),"almacen",MobileDatabase.WAREHOUSE);}
+ Map<String,Object> profile(User u){return Map.of("id",u.id(),"nombre",u.nombre(),"correo",u.correo(),"rol",u.rol(),"csrf",u.csrf(),"almacen",data.warehouseName(data.warehouse()));}
  boolean needsSetup(){return db.queryForObject("select count(*) from usuario where idsucursal=? and rol='Administrador' and activo=true",Integer.class,data.warehouse())==0;}
  @Transactional Map<String,Object> setup(String key,String name,String email,String password,HttpServletResponse response) {
   db.queryForList("select idsucursal from sucursales where idsucursal=? for update",data.warehouse());

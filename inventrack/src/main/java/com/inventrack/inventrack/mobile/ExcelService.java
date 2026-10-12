@@ -47,11 +47,11 @@ public class ExcelService {
   }catch(org.springframework.web.server.ResponseStatusException e){throw e;}catch(Exception e){throw WarehouseService.bad("No se pudo leer el Excel. Usa un archivo .xlsx o .xls válido");}
  }
  Map<String,Object> preview(MultipartFile file)throws IOException{
-  var parsed=parse(file.getBytes());Set<String> existing=new HashSet<>(data.db.queryForList("select p.codigo from producto p join inventario i on i.idproducto=p.idproducto where i.idsucursal=?",String.class,data.warehouse()));
+  var parsed=parse(file.getBytes());Set<String> existing=new HashSet<>(data.db.queryForList("select codigo from producto",String.class));
   long repeated=parsed.items().stream().filter(i->existing.contains(i.codigo())).count();
   return Map.of("total",parsed.items().size(),"nuevos",parsed.items().size()-repeated,"existentes",repeated,"errores",parsed.errors(),"muestra",parsed.items().stream().limit(8).toList(),"filaCabecera",parsed.header(),"cantidadesIniciales",0,"aviso","Las cantidades de Kayfácil se ignoran. Los productos nuevos comienzan en 0 y los existentes conservan su stock.");
  }
- @Transactional Map<String,Object> importCatalog(MobileSession.User actor,MultipartFile file,String mode)throws IOException{
+ @Transactional Map<String,Object> importCatalog(MobileSession.User actor,MultipartFile file,String mode,int site)throws IOException{
   sessions.admin(actor);if(!Set.of("nuevos","actualizar").contains(mode))throw WarehouseService.bad("Selecciona cómo importar");
   byte[] bytes=file.getBytes();var parsed=parse(bytes);if(!parsed.errors().isEmpty())throw WarehouseService.bad("Corrige las filas con errores antes de importar");
   String fingerprint=MobileSession.hash(bytes),id="excel-"+fingerprint+"-"+mode;
@@ -61,20 +61,20 @@ public class ExcelService {
   Map<String,Integer> known=new HashMap<>();data.db.query("select codigo,idproducto from producto",rs->{known.put(rs.getString(1),rs.getInt(2));});
   int created=0,updated=0,skipped=0,category=data.category("Sin clasificar");
   for(var item:parsed.items()){
-   Integer productId=known.get(item.codigo());boolean inWarehouse=productId!=null&&data.db.queryForObject("select count(*) from inventario where idsucursal=? and idproducto=?",Integer.class,data.warehouse(),productId)>0;
-   if(inWarehouse){if(mode.equals("actualizar")){data.db.update("update producto set nombre=?,precioventa=? where idproducto=?",item.nombre(),item.precio(),productId);updated++;}else skipped++;}
-   else {if(productId==null){productId=data.insert("insert into producto(idcategorias,codigo,nombre,precioventa,stockminimo,activo,fechacreacion) values(?,?,?,?,?,true,?)",category,item.codigo(),item.nombre(),item.precio(),data.defaultMinimum,LocalDateTime.now());known.put(item.codigo(),productId);}
-    data.db.update("insert into inventario(idsucursal,idproducto,cantidaddisponible,conteoreal,actualizacion) values(?,?,0,false,?)",data.warehouse(),productId,LocalDateTime.now());created++;}
+   Integer productId=known.get(item.codigo());
+   if(productId!=null){if(mode.equals("actualizar")){data.db.update("update producto set nombre=?,precioventa=? where idproducto=?",item.nombre(),item.precio(),productId);updated++;}else skipped++;}
+   else {productId=data.insert("insert into producto(idcategorias,codigo,nombre,precioventa,stockminimo,activo,fechacreacion) values(?,?,?,?,?,true,?)",category,item.codigo(),item.nombre(),item.precio(),data.defaultMinimum,LocalDateTime.now());known.put(item.codigo(),productId);created++;}
   }
+  data.ensureStocks();
   var result=Map.<String,Object>of("nuevos",created,"actualizados",updated,"omitidos",skipped,"repetido",false,"mensaje","Catálogo importado; las cantidades del almacén se conservaron");
-  data.db.update("insert into mobile_operacion(id,idusuario,idsucursal,tipo,fecha,huella,resultado) values(?,?,?,?,?,?,?)",id,actor.id(),data.warehouse(),"Importacion",LocalDateTime.now(),fingerprint,data.json.writeValueAsString(result));return result;
+  data.db.update("insert into mobile_operacion(id,idusuario,idsucursal,tipo,fecha,huella,resultado) values(?,?,?,?,?,?,?)",id,actor.id(),site,"Importacion",LocalDateTime.now(),fingerprint,data.json.writeValueAsString(result));return result;
  }
- byte[] export(String type)throws IOException{
+ byte[] export(String type,int site)throws IOException{
   try(var book=new XSSFWorkbook();var output=new ByteArrayOutputStream()){
    Sheet sheet=book.createSheet(type.equals("movimientos")?"Movimientos":"Productos");
    List<String> headers;List<Map<String,Object>> rows;
-   if(type.equals("movimientos")){headers=List.of("fecha","codigo","producto","tipo","cantidad","destino","usuario","motivo");rows=data.db.queryForList("select m.fecha,p.codigo,p.nombre as producto,m.tipomovimiento as tipo,m.cantidad,coalesce(o.destino,'') as destino,u.nombre as usuario,m.motivo from movimiento_inventario m join producto p on p.idproducto=m.idproducto join usuario u on u.idusuario=m.idusuario left join mobile_operacion o on o.id=m.idoperacion where m.idsucursal=? order by m.fecha desc",data.warehouse());}
-   else {headers=List.of("codigo","nombre","precio","cantidad","minimo","categoria","marca","ubicacion","contado");rows=data.db.queryForList(WarehouseService.PRODUCT_SELECT+" where i.idsucursal=? and p.activo=true order by p.nombre",data.warehouse());}
+   if(type.equals("movimientos")){headers=List.of("fecha","codigo","producto","tipo","cantidad","destino","usuario","motivo","almacen");rows=data.db.queryForList("select m.fecha,p.codigo,p.nombre as producto,m.tipomovimiento as tipo,m.cantidad,coalesce(o.destino,'') as destino,u.nombre as usuario,m.motivo,coalesce(s.nombremovil,s.nombre) as almacen from movimiento_inventario m join producto p on p.idproducto=m.idproducto join usuario u on u.idusuario=m.idusuario join sucursales s on s.idsucursal=m.idsucursal left join mobile_operacion o on o.id=m.idoperacion where m.idsucursal=? order by m.fecha desc",site);}
+   else {headers=List.of("codigo","nombre","precio","cantidad","minimo","categoria","marca","ubicacion","contado","almacen");rows=data.db.queryForList(WarehouseService.PRODUCT_SELECT+" where i.idsucursal=? and p.activo=true order by p.nombre",site);}
    CellStyle title=book.createCellStyle();Font font=book.createFont();font.setBold(true);font.setColor(IndexedColors.WHITE.getIndex());title.setFont(font);title.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());title.setFillPattern(FillPatternType.SOLID_FOREGROUND);
    Row head=sheet.createRow(0);for(int c=0;c<headers.size();c++){Cell cell=head.createCell(c);String key=headers.get(c);cell.setCellValue(switch(key){case "nombre"->"PRODUCTO";case "precio"->"PRECIO UNITARIO";default->key.toUpperCase(Locale.ROOT);});cell.setCellStyle(title);}
    int n=1;for(var record:rows){Row row=sheet.createRow(n++);for(int c=0;c<headers.size();c++){Object value=record.get(headers.get(c));Cell cell=row.createCell(c);if(value instanceof Number num)cell.setCellValue(num.doubleValue());else if(value instanceof Boolean b)cell.setCellValue(b?"Sí":"Pendiente");else cell.setCellValue(Objects.toString(value,""));}}

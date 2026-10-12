@@ -1,6 +1,9 @@
 ALTER TABLE inventario ADD COLUMN IF NOT EXISTS conteoreal BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE producto ADD COLUMN IF NOT EXISTS imagenurl VARCHAR(1000);
 ALTER TABLE movimiento_inventario ADD COLUMN IF NOT EXISTS idoperacion VARCHAR(100);
+ALTER TABLE sucursales ADD COLUMN IF NOT EXISTS codigomovil VARCHAR(30);
+ALTER TABLE sucursales ADD COLUMN IF NOT EXISTS nombremovil VARCHAR(100);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sucursal_codigomovil ON sucursales(codigomovil);
 CREATE TABLE IF NOT EXISTS mobile_sesion (
  tokenhash VARCHAR(64) PRIMARY KEY, idusuario INT NOT NULL REFERENCES usuario(idusuario),
  csrf VARCHAR(64) NOT NULL, expira TIMESTAMP NOT NULL, creado TIMESTAMP NOT NULL

@@ -4,13 +4,22 @@ Aplicación web de gestión de almacén, independiente para M&M: Android mediant
 
 - Cuentas del negocio y sesión guardada durante 30 días, renovable al abrir la aplicación.
 - Catálogo de Kayfácil: **4.566 productos con cantidad inicial 0**, pendientes de conteo.
-- Conteos, ingresos y salidas de varios productos con destino, usuario e historial.
-- Importación y exportación Excel. Importar no reemplaza las cantidades del almacén.
-- Lista de productos por reponer y un aviso agrupado por teléfono cuando se configura el servicio push.
+- Tres sitios: **Almacén general · 4.º piso**, **Altillo Beauty** y **Altillo M&M**, con cantidades, conteos, ubicaciones e historial independientes.
+- Selector de almacén visible en el teléfono, con la última elección guardada por usuario en ese dispositivo.
+- Conteos, ingresos y salidas de varios productos con destino y usuario identificado.
+- Importación Excel de códigos nuevos en un catálogo compartido. Los existentes se omiten y los nuevos empiezan en cero en cada sitio; el stock registrado se conserva.
+- Exportación Excel del sitio seleccionado, identificado dentro del archivo.
+- Un aviso agrupado por teléfono para los tres sitios. Al tocarlo, **Por reponer** los muestra separados por almacén.
+
+El stock existente pertenece al almacén general y se conserva al actualizar. Los dos altillos empiezan pendientes de conteo. El código, nombre, precio y mínimo de cada producto son comunes al catálogo; las unidades y la ubicación se registran por sitio.
+
+La API autenticada ofrece `GET /api/mobile/warehouses`. Los endpoints de existencias, movimientos y exportaciones reciben el ID elegido mediante `X-Almacen-Id`. Omitirlo mantiene el almacén general para los clientes anteriores. La migración añade columnas y existencias faltantes; conserva los IDs, usuarios, sesiones e historial anteriores.
 
 ## Publicar
 
 El proyecto está publicado en **MauricioGalindo123/InvenTrackApp**, rama `main`. La guía [PUBLICAR_RENDER.md](docs/PUBLICAR_RENDER.md) indica cómo activar el Blueprint preparado y obtener el enlace de la APK.
+
+[Abrir InvenTrack](https://inventrack-almacen.onrender.com). Para actualizar este servicio existente, publica los cambios en `main` y comprueba el despliegue. Si la integración de Git no lo inicia, usa **Manual Deploy → Deploy latest commit**; no hace falta crear otro servicio o base.
 
 [Publicar la versión de prueba en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMauricioGalindo123%2FInvenTrackApp)
 
