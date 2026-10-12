@@ -1,0 +1,43 @@
+# Versión de prueba: el servidor Free se suspende por inactividad.
+# La base inventrack-almacen-db ya existe en My Workspace (Virginia).
+# Su plan gratuito vence a los 30 días; usa una base permanente para stock real.
+# Render resuelve las credenciales de la base sin guardarlas en GitHub.
+services:
+  - type: web
+    name: inventrack-almacen
+    runtime: docker
+    repo: https://github.com/MauricioGalindo123/InvenTrackApp
+    branch: main
+    region: virginia
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /api/mobile/public-config
+    envVars:
+      - key: RENDER_DATABASE_URL
+        fromDatabase:
+          name: inventrack-almacen-db
+          property: connectionString
+      - key: DB_USER
+        fromDatabase:
+          name: inventrack-almacen-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: inventrack-almacen-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MOBILE_SETUP_TOKEN
+        generateValue: true
+      - key: MOBILE_ENABLED
+        value: "true"
+      - key: DB_INIT
+        value: "false"
+      - key: DB_RESET
+        value: "false"
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"

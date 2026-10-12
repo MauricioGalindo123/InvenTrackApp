@@ -10,7 +10,11 @@ Aplicación web de gestión de almacén, independiente para M&M: Android mediant
 
 ## Publicar
 
-Usa **MauricioGalindo123/InvenTrackApp**, con rama `main`. La guía [PUBLICAR_RENDER.md](docs/PUBLICAR_RENDER.md) indica cómo subir el proyecto a ese repositorio y publicar un servicio propio para obtener el enlace de la APK. El ZIP contiene el proyecto completo, dentro de `InvenTrackApp/`.
+El proyecto está publicado en **MauricioGalindo123/InvenTrackApp**, rama `main`. La guía [PUBLICAR_RENDER.md](docs/PUBLICAR_RENDER.md) indica cómo activar el Blueprint preparado y obtener el enlace de la APK.
+
+[Publicar la versión de prueba en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMauricioGalindo123%2FInvenTrackApp)
+
+El Blueprint conecta el servidor con la base `inventrack-almacen-db`, ya creada en **My Workspace**, región Virginia. No crea otra base ni incluye sus contraseñas. La base de prueba vence el **11 de noviembre de 2026**; antes de cargar cantidades reales, configura almacenamiento permanente.
 
 El backend usa Java 25, Spring Boot, Maven y PostgreSQL. El Dockerfile compila el servidor y sirve también la interfaz móvil. Las credenciales se configuran en Render y no se incluyen en el código.
 
