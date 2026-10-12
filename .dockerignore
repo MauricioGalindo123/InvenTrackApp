@@ -1,0 +1,6 @@
+inventrack/target
+**/.vscode
+**/.idea
+**/*.iml
+.git
+docs

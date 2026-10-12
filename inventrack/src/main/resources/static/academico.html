@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InvenTrack API</title>
+<style>
+ body{font-family:Arial,sans-serif;max-width:900px;margin:32px auto;padding:0 16px 60px;color:#1f2933}
+ h1{margin-bottom:4px} p.sub{color:#52606d;margin-top:0}
+ h2{margin:0;font-size:18px} summary{cursor:pointer;padding:10px 12px;background:#f0f4f8;border:1px solid #e4e7eb;border-radius:6px;margin-top:14px}
+ summary:hover{background:#e6edf5}
+ .card{background:#fafbfc;border:1px solid #e4e7eb;border-radius:8px;padding:14px 16px;margin:18px 0}
+ .card label{display:inline-block;font-size:13px;color:#52606d;margin-right:8px}
+ .card input{padding:6px 8px;border:1px solid #cbd2d9;border-radius:4px;font-size:14px;margin:4px 10px 4px 0}
+ #estado{margin:8px 0 0;font-size:14px;color:#52606d} #estado.ok{color:#2f9e44;font-weight:bold} #estado.err{color:#c92a2a}
+ .ep{margin:10px 0 0 8px;padding:10px 12px;background:#fff;border:1px solid #e4e7eb;border-radius:6px}
+ .m{display:inline-block;min-width:58px;text-align:center;font-weight:bold;font-size:12px;color:#fff;border-radius:4px;padding:3px 6px;margin-right:6px}
+ .POST{background:#2f9e44}.PUT{background:#e08a00}.DELETE{background:#d6336c}.GET{background:#1c7ed6}
+ .ep input.url{width:calc(100% - 90px);font-family:Consolas,monospace;font-size:13px;padding:5px 7px;border:1px solid #cbd2d9;border-radius:4px;vertical-align:middle}
+ .d{font-size:13px;color:#52606d;margin:6px 0 4px}
+ textarea{width:100%;box-sizing:border-box;min-height:90px;font-family:Consolas,monospace;font-size:12.5px;background:#1f2933;color:#e6edf3;border:0;border-radius:6px;padding:10px;margin-top:6px}
+ button{font-size:12.5px;padding:4px 10px;cursor:pointer;border:1px solid #cbd2d9;background:#fff;border-radius:4px;margin:6px 6px 0 0}
+ button.go{background:#0b69c7;color:#fff;border-color:#0b69c7}
+ pre.res{margin:8px 0 0;padding:10px;border-radius:6px;font-size:12.5px;overflow:auto;max-height:260px;background:#f0f4f8;white-space:pre-wrap}
+ pre.res:empty{display:none}
+ pre.res.ok{border-left:4px solid #2f9e44}pre.res.err{border-left:4px solid #c92a2a}
+</style>
+</head>
+<body>
+<h1>InvenTrack API</h1>
+<p class="sub">Sistema de gestión de inventarios para pymes con sucursales – Grupo 6. Servicio en línea.</p>
+
+<div class="card">
+  <strong>1. Inicia sesión</strong> (obtiene el token que usan todas las pruebas)<br>
+  <label for="correo">Correo</label><input id="correo" value="admin@inventrack.pe" size="24">
+  <label for="clave">Contraseña</label><input id="clave" type="password" value="ClaveSegura2026*" size="18">
+  <button class="go" id="entrar">Iniciar sesión</button> <button id="salir">Cerrar sesión</button>
+  <p id="estado"></p>
+  <div id="tokenbox" style="display:none">
+    <label for="tok">Token (JWT)</label> <button id="copiartok">Copiar token</button>
+    <textarea id="tok" readonly rows="4" style="min-height:70px;background:#f0f4f8;color:#1f2933;font-size:12px"></textarea>
+  </div>
+</div>
+
+<strong>2. Prueba los endpoints</strong> <span style="color:#52606d;font-size:13px">(HU01 a HU05 y, abajo, los de apoyo). Puedes editar la URL y el body antes de pulsar Probar.</span>
+<div id="grupos"></div>
+
+<script>
+const DATA = [{"t": "HU01 · Registrar venta (Chuquisengo)", "items": [{"m": "GET", "u": "/cliente/listar", "d": "Carga inicial: devuelve la lista de clientes para el desplegable", "b": null}, {"m": "GET", "u": "/metodo-pago/listar", "d": "Carga inicial: devuelve los métodos de pago", "b": null}, {"m": "GET", "u": "/inventario/listar?idSucursal=1", "d": "Carga inicial: productos de la sucursal con su stock disponible", "b": null}, {"m": "POST", "u": "/venta/registrar", "d": "Registra la venta con su detalle, descuenta el stock y genera los movimientos de Salida", "b": "{\n  \"idCliente\": 1,\n  \"idSucursal\": 1,\n  \"idMetodoPago\": 1,\n  \"idUsuario\": 2,\n  \"observacion\": \"Venta de mostrador\",\n  \"detalle\": [\n    {\n      \"idProducto\": 1,\n      \"cantidad\": 1,\n      \"precioUnitario\": 1299.0,\n      \"descuento\": 0\n    }\n  ]\n}"}, {"m": "PUT", "u": "/venta/anular?idVenta=5", "d": "Anula la venta y repone el stock en la sucursal", "b": null}]}, {"t": "HU02 · Reponer mercadería: compra y recepción (Sánchez)", "items": [{"m": "GET", "u": "/proveedor/listar", "d": "Carga inicial: lista de proveedores", "b": null}, {"m": "GET", "u": "/producto-proveedor/listar", "d": "Carga inicial: productos que vende cada proveedor con su precio de compra", "b": null}, {"m": "GET", "u": "/orden-compra/listar?idSucursal=1&estado=Pendiente", "d": "Lista las órdenes de la sucursal, filtradas por estado", "b": null}, {"m": "POST", "u": "/orden-compra/registrar", "d": "Registra la orden con su detalle en estado Pendiente", "b": "{\n  \"idProveedor\": 1,\n  \"idSucursal\": 1,\n  \"idUsuario\": 1,\n  \"observacion\": \"Reposición de electrónica\",\n  \"detalle\": [\n    {\n      \"idProducto\": 1,\n      \"cantidad\": 5,\n      \"precioUnitario\": 950.0\n    }\n  ]\n}"}, {"m": "PUT", "u": "/orden-compra/recibir?idCompra=3", "d": "Confirma la recepción: sube el stock y registra los movimientos de Entrada", "b": null}]}, {"t": "HU03 · Trasladar mercadería entre sucursales (Porras)", "items": [{"m": "GET", "u": "/sucursal/listar", "d": "Carga inicial: lista de sucursales para origen y destino", "b": null}, {"m": "GET", "u": "/inventario/listar?idSucursal=1", "d": "Stock de la sucursal de origen", "b": null}, {"m": "POST", "u": "/traslado/registrar", "d": "Registra el traslado con su detalle en estado Pendiente", "b": "{\n  \"idSucursalOrigen\": 1,\n  \"idSucursalDestino\": 2,\n  \"idUsuario\": 4,\n  \"observacion\": \"Televisores para Miraflores\",\n  \"detalle\": [\n    {\n      \"idProducto\": 1,\n      \"cantidad\": 2\n    }\n  ]\n}"}, {"m": "PUT", "u": "/traslado/enviar?idTraslado=1", "d": "Envía el traslado: descuenta el stock del origen y registra la Salida", "b": null}, {"m": "PUT", "u": "/traslado/recibir?idTraslado=4", "d": "Recibe el traslado: suma el stock en el destino y registra la Entrada", "b": null}, {"m": "GET", "u": "/traslado/listar?idSucursal=1&estado=Pendiente", "d": "Lista los traslados de una sucursal, filtrados por estado", "b": null}]}, {"t": "HU04 · Inventario y alertas de stock bajo (Galindo)", "items": [{"m": "GET", "u": "/inventario/listar?idSucursal=1", "d": "Lista el inventario de una sucursal", "b": null}, {"m": "GET", "u": "/inventario/buscar?idSucursal=1&idProducto=1", "d": "Busca el stock de un producto en una sucursal", "b": null}, {"m": "GET", "u": "/reporte/stock-bajo?idSucursal=1", "d": "Productos con cantidad disponible menor o igual al stock mínimo", "b": null}, {"m": "PUT", "u": "/inventario/actualizar-ubicacion", "d": "Actualiza la ubicación física del producto en la sucursal", "b": "{\n  \"idInventario\": 1,\n  \"ubicacion\": \"Pasillo Z\"\n}"}]}, {"t": "HU05 · Kárdex y reporte de ventas (Rondinel)", "items": [{"m": "GET", "u": "/movimiento/listar?idSucursal=1&desde=2026-09-01&hasta=2026-09-30", "d": "Lista los movimientos de una sucursal en un período", "b": null}, {"m": "GET", "u": "/movimiento/kardex?idProducto=1&idSucursal=1", "d": "Historial de movimientos de un producto en una sucursal", "b": null}, {"m": "GET", "u": "/reporte/ventas?desde=2026-09-01&hasta=2026-09-30", "d": "Total vendido por día en un rango de fechas (idSucursal opcional)", "b": null}]}, {"t": "Apoyo · Acceso, usuarios y sucursales", "items": [{"m": "POST", "u": "/auth/login", "d": "Iniciar sesión (admin)", "b": "{\n  \"correo\": \"admin@inventrack.pe\",\n  \"contrasena\": \"ClaveSegura2026*\"\n}"}, {"m": "POST", "u": "/sucursal/registrar", "d": "Registrar sucursal", "b": "{\n  \"nombre\": \"Sucursal de prueba\",\n  \"direccion\": \"Av. Prueba 100\",\n  \"telefono\": \"01-5550000\"\n}"}, {"m": "PUT", "u": "/sucursal/actualizar", "d": "Actualizar sucursal", "b": "{\n  \"id\": 11,\n  \"nombre\": \"Sucursal editada\",\n  \"direccion\": \"Av. Prueba 200\",\n  \"telefono\": \"01-5550001\"\n}"}, {"m": "GET", "u": "/sucursal/buscar-por-id?idSucursal=11", "d": "Buscar sucursal por ID", "b": null}, {"m": "POST", "u": "/usuario/registrar", "d": "Registrar usuario", "b": "{\n  \"idSucursal\": 1,\n  \"nombre\": \"Usuario de prueba\",\n  \"correo\": \"prueba{U}@inventrack.pe\",\n  \"contrasena\": \"Abc12345\",\n  \"rol\": \"Almacen\"\n}"}, {"m": "PUT", "u": "/usuario/actualizar", "d": "Actualizar usuario", "b": "{\n  \"idUsuario\": 11,\n  \"idSucursal\": 2,\n  \"nombre\": \"Usuario editado\",\n  \"correo\": \"prueba{U}@inventrack.pe\",\n  \"rol\": \"Vendedor\"\n}"}, {"m": "GET", "u": "/usuario/listar", "d": "Listar usuarios", "b": null}, {"m": "GET", "u": "/usuario/buscar-por-id?idUsuario=11", "d": "Buscar usuario por ID", "b": null}, {"m": "DELETE", "u": "/usuario/eliminar?idUsuario=11", "d": "Dar de baja usuario", "b": null}, {"m": "DELETE", "u": "/sucursal/eliminar?idSucursal=11", "d": "Dar de baja sucursal", "b": null}]}, {"t": "Apoyo · Catálogo (categorías, marcas y productos)", "items": [{"m": "POST", "u": "/categoria/registrar", "d": "Registrar categoría", "b": "{\n  \"nombre\": \"Categoría de prueba\",\n  \"descripcion\": \"Solo para pruebas\"\n}"}, {"m": "PUT", "u": "/categoria/actualizar", "d": "Actualizar categoría", "b": "{\n  \"id\": 11,\n  \"nombre\": \"Categoría editada\",\n  \"descripcion\": \"Editada\"\n}"}, {"m": "GET", "u": "/categoria/listar", "d": "Listar categorías", "b": null}, {"m": "GET", "u": "/categoria/buscar-por-id?idCategorias=11", "d": "Buscar categoría por ID", "b": null}, {"m": "DELETE", "u": "/categoria/eliminar?idCategorias=1", "d": "Eliminar categoría con productos", "b": null}, {"m": "POST", "u": "/marca/registrar", "d": "Registrar marca", "b": "{\n  \"nombre\": \"Marca de prueba\",\n  \"descripcion\": \"Solo para pruebas\"\n}"}, {"m": "PUT", "u": "/marca/actualizar", "d": "Actualizar marca", "b": "{\n  \"id\": 11,\n  \"nombre\": \"Marca editada\",\n  \"descripcion\": \"Editada\"\n}"}, {"m": "GET", "u": "/marca/listar", "d": "Listar marcas", "b": null}, {"m": "GET", "u": "/marca/buscar-por-id?idMarca=11", "d": "Buscar marca por ID", "b": null}, {"m": "DELETE", "u": "/marca/eliminar?idMarca=11", "d": "Dar de baja marca", "b": null}, {"m": "POST", "u": "/producto/registrar", "d": "Registrar producto", "b": "{\n  \"categoria\": {\n    \"id\": 1\n  },\n  \"marca\": {\n    \"id\": 2\n  },\n  \"codigo\": \"DEMO-{U}\",\n  \"nombre\": \"Audífonos de prueba\",\n  \"descripcion\": \"Inalámbricos\",\n  \"precioVenta\": 89.9,\n  \"precioCosto\": 55.0,\n  \"stockMinimo\": 10\n}"}, {"m": "PUT", "u": "/producto/actualizar", "d": "Actualizar producto", "b": "{\n  \"id\": 11,\n  \"categoria\": {\n    \"id\": 1\n  },\n  \"marca\": {\n    \"id\": 2\n  },\n  \"codigo\": \"DEMO-{U}\",\n  \"nombre\": \"Audífonos editados\",\n  \"descripcion\": \"Inalámbricos\",\n  \"precioVenta\": 99.9,\n  \"precioCosto\": 55.0,\n  \"stockMinimo\": 10\n}"}, {"m": "GET", "u": "/producto/listar", "d": "Listar productos", "b": null}, {"m": "GET", "u": "/producto/buscar-por-id?idProducto=11", "d": "Buscar producto por ID", "b": null}, {"m": "DELETE", "u": "/producto/eliminar?idProducto=11", "d": "Dar de baja producto", "b": null}]}, {"t": "Apoyo · Clientes, métodos de pago y ventas", "items": [{"m": "POST", "u": "/cliente/registrar", "d": "Registrar cliente", "b": "{\n  \"nombre\": \"Cliente de prueba\",\n  \"documento\": \"99999999\",\n  \"telefono\": \"999000111\"\n}"}, {"m": "PUT", "u": "/cliente/actualizar", "d": "Actualizar cliente", "b": "{\n  \"id\": 11,\n  \"nombre\": \"Cliente editado\",\n  \"documento\": \"99999999\"\n}"}, {"m": "GET", "u": "/cliente/buscar-por-id?idCliente=11", "d": "Buscar cliente por ID", "b": null}, {"m": "DELETE", "u": "/cliente/eliminar?idCliente=1", "d": "Eliminar cliente con ventas", "b": null}, {"m": "POST", "u": "/metodo-pago/registrar", "d": "Registrar método de pago", "b": "{\n  \"nombre\": \"Método de prueba\",\n  \"descripcion\": \"Solo para pruebas\"\n}"}, {"m": "PUT", "u": "/metodo-pago/actualizar", "d": "Actualizar método de pago", "b": "{\n  \"id\": 11,\n  \"nombre\": \"Método editado\",\n  \"descripcion\": \"Editado\"\n}"}, {"m": "GET", "u": "/metodo-pago/buscar-por-id?idMetodoPago=11", "d": "Buscar método de pago por ID", "b": null}, {"m": "DELETE", "u": "/metodo-pago/eliminar?idMetodoPago=11", "d": "Dar de baja método de pago", "b": null}, {"m": "GET", "u": "/venta/buscar-por-id?idVenta=11", "d": "Buscar venta por ID", "b": null}, {"m": "GET", "u": "/venta/listar?idSucursal=1", "d": "Listar ventas por sucursal", "b": null}]}, {"t": "Apoyo · Proveedores y productos de proveedor", "items": [{"m": "POST", "u": "/proveedor/registrar", "d": "Registrar proveedor", "b": "{\n  \"nombre\": \"Proveedor Prueba SAC\",\n  \"rfcNit\": \"20{U}\",\n  \"telefono\": \"999888777\",\n  \"correo\": \"ventas@prueba.pe\",\n  \"direccion\": \"Av. Lima 123\"\n}"}, {"m": "GET", "u": "/proveedor/buscar-por-id?idProveedor=11", "d": "Buscar proveedor por ID", "b": null}, {"m": "PUT", "u": "/proveedor/actualizar", "d": "Actualizar proveedor", "b": "{\n  \"idProveedor\": 11,\n  \"nombre\": \"Proveedor Prueba EDITADO\",\n  \"rfcNit\": \"20{U}\",\n  \"telefono\": \"999888777\",\n  \"correo\": \"ventas@prueba.pe\",\n  \"direccion\": \"Av. Lima 123\"\n}"}, {"m": "POST", "u": "/producto-proveedor/registrar", "d": "Registrar producto-proveedor", "b": "{\n  \"idProducto\": 2,\n  \"idProveedor\": 11,\n  \"codigoProveedor\": \"PP-FOCO\",\n  \"precioCompra\": 6.5\n}"}, {"m": "GET", "u": "/producto-proveedor/buscar-por-id?idProductoProveedor=11", "d": "Buscar producto-proveedor por ID", "b": null}, {"m": "PUT", "u": "/producto-proveedor/actualizar", "d": "Actualizar producto-proveedor", "b": "{\n  \"idProductoProveedor\": 11,\n  \"idProducto\": 2,\n  \"idProveedor\": 11,\n  \"codigoProveedor\": \"PP-FOCO-2\",\n  \"precioCompra\": 6.9\n}"}, {"m": "DELETE", "u": "/producto-proveedor/eliminar?idProductoProveedor=11", "d": "Dar de baja producto-proveedor", "b": null}, {"m": "DELETE", "u": "/proveedor/eliminar?idProveedor=11", "d": "Dar de baja proveedor", "b": null}]}];
+const U = String(Date.now()).slice(-6);
+const sub = s => s.split('{U}').join(U);
+let token = sessionStorage.getItem('token') || '';
+let nombre = sessionStorage.getItem('nombre') || '';
+const estado = document.getElementById('estado');
+
+function pintarEstado() {
+  document.getElementById('tokenbox').style.display = token ? 'block' : 'none';
+  document.getElementById('tok').value = token;
+  if (token) { estado.className = 'ok'; estado.textContent = 'Sesión iniciada como ' + nombre + '. El token se envía solo en cada prueba.'; }
+  else { estado.className = ''; estado.textContent = 'Sin sesión: inicia sesión para poder probar los endpoints.'; }
+}
+async function entrar() {
+  try {
+    const r = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correo: document.getElementById('correo').value, contrasena: document.getElementById('clave').value }) });
+    const d = await r.json();
+    if (r.ok) { token = d.token; nombre = d.nombreCompleto; sessionStorage.setItem('token', token); sessionStorage.setItem('nombre', nombre); pintarEstado(); }
+    else { estado.className = 'err'; estado.textContent = r.status + ': ' + (d.mensaje || 'No se pudo iniciar sesión'); }
+  } catch (e) { estado.className = 'err'; estado.textContent = 'No se pudo conectar: ' + e.message; }
+}
+document.getElementById('entrar').onclick = entrar;
+document.getElementById('copiartok').onclick = () => copiar(token);
+document.getElementById('salir').onclick = () => { token = ''; nombre = ''; sessionStorage.clear(); pintarEstado(); };
+
+function copiar(texto) {
+  if (navigator.clipboard) navigator.clipboard.writeText(texto);
+  else { const t = document.createElement('textarea'); t.value = texto; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+
+async function probar(ep, url, ta, out) {
+  const opts = { method: ep.m, headers: {} };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (ta) { opts.headers['Content-Type'] = 'application/json'; opts.body = ta.value; }
+  out.className = 'res'; out.textContent = 'Enviando...';
+  try {
+    const r = await fetch(url.value, opts);
+    const t = await r.text(); let c = t;
+    try { c = JSON.stringify(JSON.parse(t), null, 2); } catch (e) {}
+    out.className = 'res ' + (r.ok ? 'ok' : 'err');
+    out.textContent = r.status + ' ' + r.statusText + '\n' + c;
+  } catch (e) { out.className = 'res err'; out.textContent = 'No se pudo conectar: ' + e.message; }
+}
+
+const cont = document.getElementById('grupos');
+DATA.forEach((g, i) => {
+  const det = document.createElement('details'); if (i < 5) det.open = true;
+  const s = document.createElement('summary'); s.appendChild(el('h2', '', g.t + '  (' + g.items.length + ')')); det.appendChild(s);
+  g.items.forEach(ep => {
+    const box = el('div', 'ep');
+    box.appendChild(el('span', 'm ' + ep.m, ep.m));
+    const url = el('input', 'url'); url.value = sub(ep.u); box.appendChild(url);
+    box.appendChild(el('div', 'd', ep.d));
+    let ta = null;
+    if (ep.b) { ta = el('textarea'); ta.value = sub(ep.b); box.appendChild(ta); }
+    const out = el('pre', 'res'); out.textContent = '';
+    const go = el('button', 'go', 'Probar'); go.onclick = () => probar(ep, url, ta, out);
+    const cu = el('button', '', 'Copiar URL'); cu.onclick = () => copiar(location.origin + url.value);
+    box.appendChild(go); box.appendChild(cu);
+    if (ta) { const cb = el('button', '', 'Copiar body'); cb.onclick = () => copiar(ta.value); box.appendChild(cb); }
+    box.appendChild(out); det.appendChild(box);
+  });
+  cont.appendChild(det);
+});
+pintarEstado();
+</script>
+</body>
+</html>
